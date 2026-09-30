@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mandala</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2712%27 fill=%27none%27 stroke=%27%23d9a94a%27 stroke-width=%272%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%274%27 fill=%27%23d9a94a%27/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #05060c; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  body.idle { cursor: none; }
+
+  #fallback { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 32px; z-index: 20; background: #05060c; }
+  #fallback[hidden] { display: none; }
+  #fallback p { margin: 0; max-width: 28em; font: 300 16px/1.7 system-ui, sans-serif; letter-spacing: 0.06em; color: #c9b98f; }
+  #begin {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: #05060c; transition: opacity 1.6s ease; z-index: 10;
+  }
+  #begin.gone { opacity: 0; pointer-events: none; }
+  #begin button {
+    font: 300 15px/1 system-ui, sans-serif; letter-spacing: 0.4em; text-transform: uppercase;
+    color: #c9b98f; background: none; border: 1px solid rgba(201,185,143,0.35);
+    padding: 16px 30px 16px 34px; border-radius: 999px; cursor: pointer;
+    transition: border-color .4s, color .4s;
+  }
+  #begin button:hover { border-color: rgba(240,220,170,0.8); color: #f0dcaa; }
+
+  #menu {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+    display: flex; gap: 4px; padding: 6px; border-radius: 999px;
+    background: rgba(12,14,24,0.55); backdrop-filter: blur(8px);
+    opacity: 0; transition: opacity .5s ease; z-index: 5;
+  }
+  #menu.show { opacity: 1; }
+  #menu button {
+    width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: #c9b98f;
+    display: grid; place-items: center; cursor: pointer; transition: background .25s, color .25s;
+  }
+  #menu button:hover { background: rgba(201,185,143,0.14); color: #f0dcaa; }
+  #menu svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  #menu .off { opacity: .45; }
+  #vol { display: flex; align-items: center; border-radius: 999px; }
+  #vol input { width: 0; opacity: 0; margin: 0; transition: width .3s ease, opacity .3s ease, margin .3s ease; }
+  #vol:hover input, #vol:focus-within input, #vol.open input { width: 84px; opacity: 1; margin: 0 12px 0 2px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; height: 16px; background: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; border-radius: 2px; background: rgba(201,185,143,0.35); }
+  input[type=range]::-moz-range-track { height: 2px; border-radius: 2px; background: rgba(201,185,143,0.35); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -5px; border-radius: 50%; background: #e8d5a0; border: 0; }
+  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #e8d5a0; border: 0; }
+  #styleWrap { position: relative; }
+  #styleMenu {
+    position: absolute; left: 50%; bottom: 54px; transform: translate(-50%, 6px);
+    display: flex; gap: 8px; padding: 8px; border-radius: 999px;
+    background: rgba(12,14,24,0.7); backdrop-filter: blur(8px);
+    opacity: 0; pointer-events: none; transition: opacity .3s ease, transform .3s ease;
+  }
+  #styleMenu.open { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+  #menu .sw { width: 36px; height: 36px; border: 1px solid rgba(201,185,143,0.3); padding: 0; }
+  #menu .sw svg { width: 32px; height: 32px; }
+  #menu .sw:hover { background-color: inherit; border-color: rgba(240,220,170,0.8); }
+  #menu .sw.on { box-shadow: 0 0 0 2px #e8d5a0; }
+  #toast {
+    position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
+    font: 300 13px/1 system-ui, sans-serif; letter-spacing: .2em; color: #c9b98f;
+    opacity: 0; transition: opacity .6s; pointer-events: none;
+  }
+  #toast.show { opacity: .9; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="fallback" hidden><p>This needs a newer browser. Try a recent version of Chrome, Firefox, Safari or Edge.</p></div>
+<div id="begin"><button id="beginBtn">Begin</button></div>
+<div id="menu" aria-label="Controls">
+  <button id="bPause" title="Pause">
+    <svg viewBox="0 0 24 24" id="iPause"><path d="M9 6v12M15 6v12"/></svg>
+    <svg viewBox="0 0 24 24" id="iPlay" style="display:none"><path d="M8 5.5v13l10-6.5z"/></svg>
+  </button>
+  <div id="vol">
+    <button id="bSound" title="Sound">
+      <svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path id="wave1" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+    </button>
+    <input id="volume" type="range" min="0" max="100" value="70" aria-label="Volume">
+  </div>
+  <div id="styleWrap">
+    <button id="bStyle" title="Style">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>
+    </button>
+    <div id="styleMenu"></div>
+  </div>
+  <button id="bForm" title="Form">
+    <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1"/><circle cx="12" cy="12" r="4.5"/></svg>
+  </button>
+  <button id="bNew" title="New mandala">
+    <svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16M6.3 6.3l11.4 11.4M17.7 6.3L6.3 17.7"/></svg>
+  </button>
+  <button id="bLink" title="Copy link">
+    <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+  </button>
+  <button id="bFull" title="Fullscreen">
+    <svg viewBox="0 0 24 24"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/></svg>
+  </button>
+</div>
+<div id="toast"></div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
